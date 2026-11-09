@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOTP Authenticator BD -- offline two-factor codes</title>
+<meta name="description" content="Offline bilingual EN/Bangla TOTP authenticator. Two-factor codes generated on your device with WebCrypto. No account, no server, no network.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div>
+      <h1 id="appTitle" data-i18n="appTitle">TOTP Authenticator BD</h1>
+      <p class="tagline" data-i18n="appTagline">Two-factor codes, generated on your device. No account, no server, no network.</p>
+    </div>
+    <div class="top-actions">
+      <span id="frozenBadge" class="badge" data-i18n="frozenBadge" hidden>TEST MODE -- time frozen</span>
+      <div class="lang-toggle" role="group" aria-label="Language">
+        <button id="langEn" type="button" class="active">English</button>
+        <button id="langBn" type="button" data-i18n="langBn">Bangla</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="fatalError" class="error-banner" hidden></div>
+
+  <section class="note" aria-label="Security note">
+    <h2 data-i18n="securityTitle">Your secrets never leave this device</h2>
+    <p data-i18n="securityBody">Codes are computed in your browser with WebCrypto (HMAC-SHA1 / SHA-256 / SHA-512, RFC 6238). Secrets are stored only in this browser's localStorage. This page makes zero network requests. Anyone with access to this browser can read your secrets -- use a device lock and do not use this on a shared computer.</p>
+  </section>
+
+  <section class="panel" id="addSection" aria-label="Add account">
+    <h2 data-i18n="addTitle">Add an account</h2>
+    <div class="tabs" role="tablist">
+      <button id="tabManualBtn" type="button" class="tab active" data-i18n="tabManual">Manual entry</button>
+      <button id="tabUriBtn" type="button" class="tab" data-i18n="tabUri">Paste otpauth:// link</button>
+    </div>
+
+    <div id="manualForm">
+      <div class="grid2">
+        <label><span data-i18n="issuerLabel">Issuer (service name)</span>
+          <input id="issuerInput" type="text" maxlength="64" autocomplete="off" data-i18n-ph="issuerPh" placeholder="e.g. Google, GitHub, bKash"></label>
+        <label><span data-i18n="accountLabel">Account name</span>
+          <input id="accountInput" type="text" maxlength="128" autocomplete="off" data-i18n-ph="accountPh" placeholder="e.g. you@example.com"></label>
+      </div>
+      <label><span data-i18n="secretLabel">Secret key (Base32)</span>
+        <input id="secretInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-i18n-ph="secretPh" placeholder="e.g. JBSWY3DPEHPK3PXP"></label>
+      <div class="grid3">
+        <label><span data-i18n="algorithmLabel">Algorithm</span>
+          <select id="algoSel"><option value="SHA1">SHA-1</option><option value="SHA256">SHA-256</option><option value="SHA512">SHA-512</option></select></label>
+        <label><span data-i18n="digitsLabel">Digits</span>
+          <select id="digitsSel"><option value="6">6</option><option value="8">8</option></select></label>
+        <label><span data-i18n="periodLabel">Period (seconds)</span>
+          <select id="periodSel"><option value="30">30</option><option value="60">60</option></select></label>
+      </div>
+    </div>
+
+    <div id="uriForm" hidden>
+      <label><span data-i18n="uriLabel">otpauth:// link</span>
+        <textarea id="uriInput" rows="3" spellcheck="false" data-i18n-ph="uriPh" placeholder="otpauth://totp/Issuer:you@example.com?secret=...&amp;issuer=Issuer"></textarea></label>
+      <button id="parseBtn" type="button" class="btn secondary" data-i18n="parseBtn">Parse link</button>
+    </div>
+
+    <p id="formError" class="error" hidden></p>
+    <div class="row">
+      <button id="addBtn" type="button" class="btn primary" data-i18n="addBtn">Add account</button>
+      <button id="cancelEditBtn" type="button" class="btn ghost" hidden data-i18n="cancelEditBtn">Cancel editing</button>
+      <button id="demoBtn" type="button" class="btn secondary" data-i18n="demoBtn">Add demo account</button>
+    </div>
+    <p class="hint" data-i18n="demoNote">Demo uses the RFC 6238 test secret -- its codes are public and prove the math works.</p>
+  </section>
+
+  <section class="toolbar" aria-label="Account tools">
+    <input id="searchInput" type="search" autocomplete="off" data-i18n-ph="searchPh" placeholder="Search accounts...">
+    <div class="row wrap-btns">
+      <button id="exportBtn" type="button" class="btn small" data-i18n="exportBtn">Export JSON</button>
+      <button id="copyExportBtn" type="button" class="btn small" data-i18n="copyExportBtn">Copy export JSON</button>
+      <button id="importBtn" type="button" class="btn small" data-i18n="importBtn">Import JSON</button>
+      <button id="eraseBtn" type="button" class="btn small danger" data-i18n="eraseBtn">Erase all</button>
+    </div>
+  </section>
+
+  <section id="importPanel" class="panel" hidden>
+    <h2 data-i18n="importTitle">Import accounts (JSON)</h2>
+    <textarea id="importText" rows="4" spellcheck="false" data-i18n-ph="importPh" placeholder="Paste an export file's JSON here..."></textarea>
+    <div class="row"><button id="importDoBtn" type="button" class="btn primary" data-i18n="importDoBtn">Import</button></div>
+    <p id="importMsg" class="hint"></p>
+  </section>
+
+  <section id="erasePanel" class="panel danger-panel" hidden>
+    <h2 data-i18n="eraseTitle">Erase everything?</h2>
+    <p data-i18n="eraseBody">This deletes all accounts and settings from this browser. Type DELETE to confirm.</p>
+    <input id="eraseInput" type="text" autocomplete="off" data-i18n-ph="erasePh" placeholder="Type DELETE">
+    <div class="row"><button id="eraseDoBtn" type="button" class="btn danger" data-i18n="eraseDoBtn">Erase all data</button></div>
+  </section>
+
+  <section aria-label="Accounts">
+    <div id="emptyState" class="empty">
+      <h2 data-i18n="emptyTitle">No accounts yet</h2>
+      <p data-i18n="emptyBody">Add your first two-factor account above, paste an otpauth:// link from your service, or try the demo account to see a live code.</p>
+    </div>
+    <p id="noMatch" class="empty" data-i18n="noMatch" hidden>No accounts match your search.</p>
+    <div id="accountsList" class="cards"></div>
+  </section>
+
+  <footer>
+    <p data-i18n="footerNote">Offline TOTP authenticator - RFC 6238 / RFC 4226 - Codes are generated locally; verify the time on this device is correct, or codes will not match your service.</p>
+    <p data-i18n="footerDemo">Demo account codes are public by design -- never use them for a real login.</p>
+  </footer>
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/logic.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
